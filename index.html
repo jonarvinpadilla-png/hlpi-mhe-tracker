@@ -1,0 +1,1619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>HLPI · MHE Daily Inspection &amp; Uptime Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --ink:#1c2024; --ink-2:#2b3136; --ink-3:#3a4048;
+    --paper:#eef0ea; --panel:#ffffff;
+    --caution:#f2a900; --caution-ink:#5c4400;
+    --go:#2f9e5b; --go-bg:#e5f4ec; --go-ink:#1c6b3c;
+    --stop:#d1453b; --stop-bg:#fbe9e7; --stop-ink:#9c2d25;
+    --muted:#6b7280; --border:#dde1de; --border-2:#3f464d;
+    --radius:10px; --radius-lg:14px;
+    --shadow:0 1px 2px rgba(0,0,0,.06), 0 6px 16px rgba(0,0,0,.07);
+    --shadow-plate: inset 0 1px 0 rgba(255,255,255,.06), 0 6px 14px rgba(0,0,0,.35);
+    --font-display:'Oswald','Arial Narrow',sans-serif;
+    --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:ui-monospace,'SF Mono','Cascadia Mono',Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--font-body);
+    font-size:15px;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+  button, input, select, textarea{ font-family:inherit; font-size:inherit; }
+  h1,h2,h3,h4{ font-family:var(--font-display); margin:0; letter-spacing:.02em; }
+  a{ color:inherit; }
+  .mono{ font-family:var(--font-mono); }
+  .muted{ color:var(--muted); }
+  :focus-visible{ outline:3px solid var(--caution); outline-offset:2px; }
+
+  /* ---------- TOPBAR ---------- */
+  .topbar{
+    background:var(--ink); color:#fff;
+    padding:14px 16px;
+    position:sticky; top:0; z-index:20;
+    box-shadow:0 2px 10px rgba(0,0,0,.25);
+  }
+  .topbar-inner{
+    max-width:1180px; margin:0 auto;
+    display:flex; align-items:center; justify-content:space-between;
+    gap:12px; flex-wrap:wrap;
+  }
+  .brand{ display:flex; flex-direction:column; line-height:1.1; }
+  .brand-mark{
+    font-family:var(--font-display); font-weight:700; font-size:19px;
+    letter-spacing:.06em; text-transform:uppercase;
+  }
+  .brand-mark span{ color:var(--caution); }
+  .brand-sub{ font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:#9aa1a8; margin-top:2px; }
+  .nav{ display:flex; gap:6px; flex-wrap:wrap; }
+  .nav-btn{
+    background:transparent; border:1px solid #454c53; color:#d7dade;
+    padding:8px 14px; border-radius:999px; cursor:pointer;
+    font-family:var(--font-display); font-weight:500; font-size:13px;
+    letter-spacing:.04em; text-transform:uppercase;
+    transition:background .15s, color .15s, border-color .15s;
+  }
+  .nav-btn:hover{ border-color:#6b7379; }
+  .nav-btn.active{ background:var(--caution); border-color:var(--caution); color:#3a2c00; }
+
+  /* ---------- LAYOUT ---------- */
+  .wrap{ max-width:1180px; margin:0 auto; padding:20px 16px 64px; }
+  .view{ animation:fade .18s ease; }
+  @keyframes fade{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+  .stack{ display:flex; flex-direction:column; gap:16px; }
+  .grid{ display:grid; gap:16px; }
+  .grid-2{ grid-template-columns:1fr; }
+  .grid-3{ grid-template-columns:1fr; }
+  @media (min-width:760px){
+    .grid-2{ grid-template-columns:1fr 1fr; }
+    .grid-3{ grid-template-columns:1fr 1fr 1fr; }
+  }
+
+  /* ---------- PANEL ---------- */
+  .panel{
+    background:var(--panel); border:1px solid var(--border);
+    border-radius:var(--radius-lg); padding:18px 18px 20px;
+    box-shadow:var(--shadow);
+  }
+  .panel-head{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+  .panel-title{ font-size:15px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
+  .panel-sub{ font-size:12.5px; color:var(--muted); }
+
+  /* ---------- KPI ---------- */
+  .kpi-row{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+  @media (min-width:640px){ .kpi-row{ grid-template-columns:repeat(4,1fr); } }
+  .kpi-card{
+    background:var(--ink); color:#fff; border-radius:var(--radius-lg);
+    padding:16px 16px 14px; box-shadow:var(--shadow-plate);
+    position:relative; overflow:hidden;
+  }
+  .kpi-card::before{
+    content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--caution);
+  }
+  .kpi-card.is-down::before{ background:var(--stop); }
+  .kpi-value{ font-family:var(--font-display); font-size:34px; font-weight:700; line-height:1; }
+  .kpi-label{ font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:#a9afb5; margin-top:6px; }
+
+  /* ---------- RANGE CHIPS ---------- */
+  .chip-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .chip{
+    border:1px solid var(--border); background:#fff; color:var(--ink);
+    padding:6px 13px; border-radius:999px; cursor:pointer; font-size:12.5px; font-weight:600;
+  }
+  .chip.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
+
+  /* ---------- STATUS ---------- */
+  .status-dot{ width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:7px; vertical-align:middle; }
+  .status-dot.up{ background:var(--go); box-shadow:0 0 0 3px var(--go-bg), 0 0 8px rgba(47,158,91,.7); }
+  .status-dot.down{ background:var(--stop); box-shadow:0 0 0 3px var(--stop-bg), 0 0 8px rgba(209,69,59,.7); }
+  .badge{
+    display:inline-flex; align-items:center; padding:4px 11px; border-radius:999px;
+    font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+  }
+  .badge.up{ background:var(--go-bg); color:var(--go-ink); }
+  .badge.down{ background:var(--stop-bg); color:var(--stop-ink); }
+
+  /* ---------- BUTTONS ---------- */
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    border:none; border-radius:8px; padding:11px 18px; cursor:pointer;
+    font-weight:600; font-size:14px; font-family:var(--font-body);
+    transition:transform .05s ease, filter .15s ease;
+  }
+  .btn:active{ transform:scale(.98); }
+  .btn-primary{ background:var(--ink); color:#fff; }
+  .btn-primary:hover{ filter:brightness(1.2); }
+  .btn-caution{ background:var(--caution); color:#3a2c00; }
+  .btn-caution:hover{ filter:brightness(1.06); }
+  .btn-danger{ background:var(--stop); color:#fff; }
+  .btn-danger:hover{ filter:brightness(1.1); }
+  .btn-go{ background:var(--go); color:#fff; }
+  .btn-go:hover{ filter:brightness(1.1); }
+  .btn-outline{ background:transparent; color:var(--ink); border:1.5px solid var(--border-2); }
+  .btn-outline:hover{ background:rgba(0,0,0,.04); }
+  .btn-sm{ padding:7px 13px; font-size:12.5px; }
+  .btn-block{ width:100%; }
+  .btn[disabled]{ opacity:.45; cursor:not-allowed; }
+  .btn-row{ display:flex; gap:10px; flex-wrap:wrap; }
+
+  /* ---------- EQUIPMENT PLATE (signature element) ---------- */
+  .plate-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:14px; }
+  .plate{
+    background:linear-gradient(160deg,var(--ink-2),var(--ink));
+    border-radius:12px; padding:14px 14px 12px; color:#fff;
+    box-shadow:var(--shadow-plate); position:relative; cursor:pointer;
+    border:1px solid #40474e; text-align:center;
+  }
+  .plate:hover{ transform:translateY(-2px); box-shadow:0 10px 22px rgba(0,0,0,.4); }
+  .plate::before, .plate::after{
+    content:''; position:absolute; top:8px; width:5px; height:5px; border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #9aa1a8, #4b5157 70%);
+  }
+  .plate::before{ left:8px; } .plate::after{ right:8px; }
+  .plate-qr{
+    background:#f5f6f2; border-radius:6px; padding:6px; width:92px; height:92px;
+    margin:6px auto 10px; display:flex; align-items:center; justify-content:center;
+  }
+  .plate-qr img, .plate-qr canvas, .plate-qr table{ width:100% !important; height:100% !important; }
+  .plate-id{ font-family:var(--font-mono); font-weight:700; font-size:15px; letter-spacing:.03em; }
+  .plate-label{ font-size:11px; color:#b7bcc1; margin-top:2px; text-transform:uppercase; letter-spacing:.05em; }
+  .plate-status{ margin-top:9px; }
+
+  /* ---------- TABS / FILTERS ---------- */
+  .tabs{ display:flex; gap:6px; flex-wrap:wrap; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:14px; }
+  .tab-btn{
+    background:transparent; border:none; padding:8px 4px; margin-right:14px; cursor:pointer;
+    font-family:var(--font-display); font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--muted); border-bottom:3px solid transparent;
+  }
+  .tab-btn.active{ color:var(--ink); border-bottom-color:var(--caution); }
+  .filter-row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .select, .input, .textarea{
+    border:1.5px solid var(--border); border-radius:8px; padding:9px 11px;
+    background:#fff; color:var(--ink); width:100%;
+  }
+  .textarea{ min-height:70px; resize:vertical; }
+  .field{ display:flex; flex-direction:column; gap:5px; margin-bottom:14px; }
+  .field label{ font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+
+  /* ---------- CHECKLIST ---------- */
+  .check-item{ border:1px solid var(--border); border-radius:10px; padding:12px 13px; margin-bottom:10px; }
+  .check-item-label{ font-size:14.5px; font-weight:500; margin-bottom:9px; }
+  .toggle-group{ display:flex; gap:8px; }
+  .toggle-btn{
+    flex:1; border:1.5px solid var(--border); background:#fff; border-radius:8px;
+    padding:9px 6px; cursor:pointer; font-weight:700; font-size:12.5px; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--muted);
+  }
+  .toggle-btn.sel-pass{ background:var(--go-bg); border-color:var(--go); color:var(--go-ink); }
+  .toggle-btn.sel-fail{ background:var(--stop-bg); border-color:var(--stop); color:var(--stop-ink); }
+  .toggle-btn.sel-na{ background:#eef0ea; border-color:#b9bdb4; color:var(--ink); }
+
+  /* ---------- TABLE ---------- */
+  .table-wrap{ overflow-x:auto; }
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); padding:8px 10px; border-bottom:2px solid var(--border); white-space:nowrap; }
+  td{ padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+  tr:last-child td{ border-bottom:none; }
+
+  /* ---------- MISC ---------- */
+  .unit-hero{ display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+  .unit-hero-id{ font-family:var(--font-display); font-size:26px; font-weight:700; }
+  .empty-state{ text-align:center; padding:26px 10px; color:var(--muted); }
+  .banner{ background:#fff7e0; border:1px solid var(--caution); color:var(--caution-ink); padding:10px 14px; border-radius:10px; font-size:13px; margin-bottom:16px; }
+  .banner-err{ background:var(--stop-bg); border-color:var(--stop); color:var(--stop-ink); }
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:#fff; padding:12px 20px; border-radius:999px;
+    font-size:13.5px; font-weight:600; box-shadow:var(--shadow); z-index:50;
+    animation:toastin .18s ease;
+  }
+  @keyframes toastin{ from{opacity:0; transform:translate(-50%,8px);} to{opacity:1; transform:translate(-50%,0);} }
+  .link-btn{ background:none; border:none; color:var(--ink); text-decoration:underline; cursor:pointer; font-size:13px; padding:0; }
+  .chart-box{ width:100%; overflow-x:auto; }
+  .legend{ display:flex; flex-wrap:wrap; gap:10px 16px; margin-top:10px; font-size:12.5px; }
+  .legend-item{ display:flex; align-items:center; gap:6px; }
+  .legend-swatch{ width:11px; height:11px; border-radius:3px; display:inline-block; }
+  .back-link{ display:inline-flex; align-items:center; gap:6px; margin-bottom:14px; font-size:13px; font-weight:600; cursor:pointer; }
+  .search-input{ max-width:260px; }
+
+  /* ---------- PRINT ---------- */
+  @media print{
+    .no-print{ display:none !important; }
+    body{ background:#fff; }
+    .wrap{ padding:0; max-width:none; }
+    .plate-grid{ grid-template-columns:repeat(4,1fr); gap:10px; }
+    .plate{ break-inside:avoid; color:#000; background:#fff; border:1.5px solid #000; box-shadow:none; }
+    .plate-label, .brand-sub{ color:#333 !important; }
+    .plate-qr{ background:#fff; }
+  }
+</style>
+</head>
+<body>
+<div class="topbar no-print">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-mark">HLPI <span>&middot;</span> MHE Watch</div>
+      <div class="brand-sub">Daily Inspection &amp; Uptime Tracker</div>
+    </div>
+    <div class="nav" id="nav">
+      <button class="nav-btn" data-nav="dashboard">Dashboard</button>
+      <button class="nav-btn" data-nav="registry">Equipment &amp; Tags</button>
+      <button class="nav-btn" data-nav="reports">Reports</button>
+    </div>
+  </div>
+</div>
+<div class="wrap">
+  <div id="banner-slot"></div>
+  <div id="view-root"></div>
+</div>
+<div id="toast-slot"></div>
+
+<script>
+'use strict';
+// === SECTION: DATA ===
+var CATEGORY_INFO = {
+  JL:  { name:'Jack Lift',           full:'Hand Pallet Truck (Manual)' },
+  RT:  { name:'Reach Truck',         full:'Battery Reach Truck' },
+  PM:  { name:'Pallet Mover',        full:'Electric Pallet Truck' },
+  ML:  { name:'Manlift',             full:'Aerial Work Platform' },
+  BTR: { name:'BT Raymond',          full:'Order Picker / Reach Unit' },
+  CB:  { name:'Counterbalance',      full:'Counterbalance Forklift' }
+};
+
+var DOWNTIME_REASONS = [
+  'Failed Inspection','Mechanical','Hydraulic','Electrical / Battery',
+  'Structural / Frame','Safety Device','Scheduled Maintenance','Awaiting Parts','Other'
+];
+
+var SHIFTS = ['Day Shift','Night Shift'];
+
+function buildDefaultEquipment(){
+  var list = [];
+  var now = Date.now();
+  function add(id, categoryCode, location, label, isService){
+    list.push({
+      id: id,
+      categoryCode: categoryCode,
+      location: location,
+      label: label,
+      isService: !!isService,
+      status: 'Operational',
+      statusSince: now,
+      currentReason: null,
+      currentReasonDetail: null,
+      reportedBy: null,
+      lastInspection: null
+    });
+  }
+  for (var i=1; i<=22; i++){
+    add('JL-' + String(i).padStart(2,'0'), 'JL', 'Unassigned', 'Jack Lift #' + String(i).padStart(2,'0'), false);
+  }
+  for (var i=1; i<=3; i++){
+    add('RT-DRY-' + i, 'RT', 'Dry Warehouse', 'Reach Truck – Dry WH #' + i, false);
+  }
+  add('RT-DRY-SVC', 'RT', 'Dry Warehouse', 'Reach Truck – Dry WH (Service Unit)', true);
+  for (var i=1; i<=3; i++){
+    add('RT-FC-' + i, 'RT', 'FC Warehouse', 'Reach Truck – FC WH #' + i, false);
+  }
+  add('RT-FC-SVC', 'RT', 'FC Warehouse', 'Reach Truck – FC WH (Service Unit)', true);
+  for (var i=1; i<=7; i++){
+    add('PM-DRY-' + i, 'PM', 'Dry Warehouse', 'Pallet Mover – Dry WH #' + i, false);
+  }
+  add('PM-DRY-SVC', 'PM', 'Dry Warehouse', 'Pallet Mover – Dry WH (Service Unit)', true);
+  for (var i=1; i<=7; i++){
+    add('PM-FC-' + i, 'PM', 'FC Warehouse', 'Pallet Mover – FC WH #' + i, false);
+  }
+  add('PM-FC-SVC', 'PM', 'FC Warehouse', 'Pallet Mover – FC WH (Service Unit)', true);
+  add('ML-01', 'ML', 'Unassigned', 'Manlift', false);
+  add('BTR-01', 'BTR', 'Unassigned', 'BT Raymond', false);
+  for (var i=1; i<=3; i++){
+    add('CB-0' + i, 'CB', 'Unassigned', 'Counterbalance Forklift #' + i, false);
+  }
+  return list;
+}
+
+var CHECKLISTS = {
+  JL: { items:[
+    {id:'forks',   label:'Forks / blades — no cracks, bends, or damage'},
+    {id:'wheels',  label:'Wheels / casters — roll freely, no damage or wrapped debris'},
+    {id:'pump',    label:'Hydraulic pump raises load smoothly'},
+    {id:'lower',   label:'Lowering / release valve works; no oil leaks'},
+    {id:'handle',  label:'Handle / tiller secure; control lever functions'},
+    {id:'loadwh',  label:'Load wheels secure, no flat spots or excess wear'},
+    {id:'frame',   label:'Frame — no visible cracks or bends'},
+    {id:'labels',  label:'Safety / warning labels present and legible'},
+    {id:'noise',   label:'No unusual noise during operation'}
+  ]},
+  RT: { items:[
+    {id:'battery', label:'Battery charge level / connector condition OK'},
+    {id:'tires',   label:'Tires / wheels — condition good, properly seated'},
+    {id:'forks',   label:'Forks straight, no cracks, locking pins secure'},
+    {id:'mast',    label:'Mast &amp; chains — no damage, lubricated, smooth full-height lift'},
+    {id:'hyd',     label:'Hydraulics — no leaks, smooth lift / tilt / reach'},
+    {id:'horn',    label:'Horn functional'},
+    {id:'alarm',   label:'Back-up alarm functional'},
+    {id:'lights',  label:'Lights / beacon functional'},
+    {id:'brakes',  label:'Service &amp; parking brakes function properly'},
+    {id:'seat',    label:'Seat / operator restraint functional and secure'},
+    {id:'guard',   label:'Overhead guard secure, undamaged'},
+    {id:'steer',   label:'Steering smooth and responsive'},
+    {id:'plate',   label:'Capacity / data plate legible and attached'},
+    {id:'leaks',   label:'No hydraulic oil or battery acid leaks'}
+  ]},
+  PM: { items:[
+    {id:'battery', label:'Battery charge level / connector condition OK'},
+    {id:'forks',   label:'Forks straight, no cracks'},
+    {id:'wheels',  label:'Wheels / rollers — condition good, roll freely'},
+    {id:'hyd',     label:'Hydraulic lift smooth, no leaks'},
+    {id:'horn',    label:'Horn functional'},
+    {id:'ereverse',label:'Emergency reverse (bumper / belly switch) functional'},
+    {id:'brakes',  label:'Brakes functional'},
+    {id:'tiller',  label:'Tiller arm / steering handle secure, buttons responsive'},
+    {id:'speed',   label:'Speed control functions at all settings'},
+    {id:'cable',   label:'Charging cable / plug — no exposed wires or damage'},
+    {id:'estop',   label:'Emergency stop button functional'},
+    {id:'body',    label:'Overall body condition — no cracks / damage'}
+  ]},
+  ML: { items:[
+    {id:'outrig',  label:'Outriggers / stabilizers deploy and lock properly'},
+    {id:'guard',   label:'Platform guardrails secure, undamaged'},
+    {id:'gate',    label:'Entry gate / chain closes and latches properly'},
+    {id:'pcontrol',label:'Platform controls — all functions responsive'},
+    {id:'gcontrol',label:'Ground / base controls functional'},
+    {id:'estop',   label:'Emergency stop (platform &amp; ground) functional'},
+    {id:'descent', label:'Emergency lowering / descent system functional'},
+    {id:'hyd',     label:'Hydraulic system — no visible leaks'},
+    {id:'tires',   label:'Tires / wheels in good condition'},
+    {id:'harness', label:'Harness anchor point(s) present, secure, undamaged'},
+    {id:'horn',    label:'Horn / alarm functional'},
+    {id:'tilt',    label:'Tilt alarm / level indicator functional'},
+    {id:'placard', label:'Capacity placards legible and present'},
+    {id:'power',   label:'Battery / fuel level adequate'}
+  ]},
+  BTR: { items:[
+    {id:'battery', label:'Battery charge level OK'},
+    {id:'forks',   label:'Forks — condition good, secure'},
+    {id:'mast',    label:'Mast / lift chains — condition, lubrication OK'},
+    {id:'cage',    label:'Operator platform / cage guardrails secure, undamaged'},
+    {id:'harness', label:'Harness / restraint present and functional'},
+    {id:'hyd',     label:'Hydraulic system — no leaks, smooth lift'},
+    {id:'horn',    label:'Horn functional'},
+    {id:'brakes',  label:'Brakes functional'},
+    {id:'steer',   label:'Steering responsive'},
+    {id:'descent', label:'Emergency lowering function works'},
+    {id:'lights',  label:'Warning lights / beacon functional'},
+    {id:'plate',   label:'Capacity / data plate legible'}
+  ]},
+  CB: { items:[
+    {id:'startup', label:'Engine / battery start-up normal — no unusual noise or smoke'},
+    {id:'fuel',    label:'Fuel / LPG / charge level adequate'},
+    {id:'forks',   label:'Forks straight, no cracks, locking pins secure'},
+    {id:'mast',    label:'Mast &amp; chains — condition, lubrication, smooth operation'},
+    {id:'hyd',     label:'Hydraulics — no leaks, smooth lift / tilt'},
+    {id:'tires',   label:'Tires — condition good, properly inflated'},
+    {id:'seat',    label:'Seatbelt present and functional'},
+    {id:'horn',    label:'Horn functional'},
+    {id:'alarm',   label:'Back-up alarm functional'},
+    {id:'lights',  label:'Lights (head / tail / beacon) functional'},
+    {id:'brakes',  label:'Service &amp; parking brakes functional'},
+    {id:'guard',   label:'Overhead guard secure, undamaged'},
+    {id:'mirrors', label:'Mirrors present, clean, properly adjusted'},
+    {id:'leaks',   label:'No fuel / oil / hydraulic / coolant / battery leaks'},
+    {id:'plate',   label:'Capacity / data plate legible'}
+  ]}
+};
+
+// === SECTION: STORAGE ===
+// Paste your deployed Google Apps Script Web App URL below (ends in /exec) to
+// connect a Google Sheet as the shared database. Leave it blank ('') to use
+// Claude's built-in storage instead (only works while this stays a Claude artifact).
+var SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbxSPkvkAmukppVVR6TN82sWQ2TBp1Ud22A5Z0_yJJdjVLiik3WcgJTDR3scACljkzwd/exec';
+
+var STORAGE_OK = (typeof window.storage === 'object' && window.storage !== null && typeof window.storage.get === 'function');
+var SHEETS_OK = !!SHEETS_API_URL;
+var SHEETS_REACHABLE = null; // null = not tested yet, set on boot
+var memoryStore = {};
+
+async function sheetsGet(key){
+  var resp = await fetch(SHEETS_API_URL + '?action=get&key=' + encodeURIComponent(key), { method:'GET' });
+  if (!resp.ok) throw new Error('sheets get failed: ' + resp.status);
+  var data = await resp.json();
+  return (data && data.value !== undefined && data.value !== '') ? data.value : null;
+}
+async function sheetsSet(key, value){
+  // text/plain avoids a CORS preflight that Apps Script Web Apps don't handle well
+  var resp = await fetch(SHEETS_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ key: key, value: value })
+  });
+  if (!resp.ok) throw new Error('sheets set failed: ' + resp.status);
+}
+async function testSheetsConnection(){
+  if (!SHEETS_OK) return false;
+  try{
+    await sheetsGet('__ping__');
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
+async function storeGet(key, shared){
+  if (shared && SHEETS_OK && SHEETS_REACHABLE !== false){
+    try{ return await sheetsGet(key); }
+    catch(e){ /* fall through to next layer below */ }
+  }
+  if (!STORAGE_OK){
+    var k = (shared ? 's:' : 'l:') + key;
+    return Object.prototype.hasOwnProperty.call(memoryStore, k) ? memoryStore[k] : null;
+  }
+  try{
+    var r = await window.storage.get(key, !!shared);
+    return r ? r.value : null;
+  }catch(e){
+    return null; // key not present yet, or transient error — callers treat as "no data"
+  }
+}
+async function storeSet(key, value, shared){
+  if (shared && SHEETS_OK && SHEETS_REACHABLE !== false){
+    try{ await sheetsSet(key, value); return; }
+    catch(e){ /* fall through to next layer below */ }
+  }
+  if (!STORAGE_OK){
+    var k = (shared ? 's:' : 'l:') + key;
+    memoryStore[k] = value;
+    return;
+  }
+  try{
+    await window.storage.set(key, value, !!shared);
+  }catch(e){
+    var k2 = (shared ? 's:' : 'l:') + key;
+    memoryStore[k2] = value;
+  }
+}
+async function getJSON(key, shared, fallback){
+  var v = await storeGet(key, shared);
+  if (v === null || v === undefined) return fallback;
+  try{ return JSON.parse(v); }catch(e){ return fallback; }
+}
+async function setJSON(key, shared, obj){
+  await storeSet(key, JSON.stringify(obj), shared);
+}
+
+// === SECTION: STATE ===
+var state = {
+  equipment: [],
+  view: 'dashboard',
+  currentUnitId: null,
+  unitSubview: 'detail', // 'detail' | 'inspect' | 'breakdown' | 'rts' | 'edit'
+  reportRange: 30,
+  reportTab: 'inspections', // 'inspections' | 'events' | 'summary'
+  reportCategory: 'ALL',
+  registryFilter: 'ALL',
+  registrySearch: '',
+  inspectorName: '',
+  loaded: false,
+  dataCache: { inspections:{}, statusEvents:{} }
+};
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+function monthKeyFor(d){ return 'inspections-' + d.getFullYear() + '-' + pad2(d.getMonth()+1); }
+function yearKeyFor(d){ return 'status-events-' + d.getFullYear(); }
+
+function monthsBetween(start, end){
+  var out = [];
+  var d = new Date(start.getFullYear(), start.getMonth(), 1);
+  var last = new Date(end.getFullYear(), end.getMonth(), 1);
+  while (d <= last){
+    out.push(new Date(d));
+    d.setMonth(d.getMonth() + 1);
+  }
+  return out;
+}
+function yearsBetween(start, end){
+  var out = [];
+  for (var y = start.getFullYear(); y <= end.getFullYear(); y++) out.push(y);
+  return out;
+}
+function rangeStartEnd(days){
+  var end = new Date();
+  var start = new Date(end.getTime() - days*24*60*60*1000);
+  return { start: start, end: end };
+}
+
+// === SECTION: LOGIC ===
+function findUnit(id){
+  for (var i=0;i<state.equipment.length;i++){ if (state.equipment[i].id === id) return state.equipment[i]; }
+  return null;
+}
+
+async function loadInspectionsInRange(start, end){
+  var months = monthsBetween(start, end);
+  var all = [];
+  for (var i=0;i<months.length;i++){
+    var key = monthKeyFor(months[i]);
+    if (!state.dataCache.inspections[key]){
+      state.dataCache.inspections[key] = await getJSON(key, true, []);
+    }
+    all = all.concat(state.dataCache.inspections[key]);
+  }
+  return all.filter(function(r){ return r.datetime >= start.getTime() && r.datetime <= end.getTime(); });
+}
+
+async function loadStatusEventsRaw(start, end){
+  var years = yearsBetween(start, end);
+  var all = [];
+  for (var i=0;i<years.length;i++){
+    var key = 'status-events-' + years[i];
+    if (!state.dataCache.statusEvents[key]){
+      state.dataCache.statusEvents[key] = await getJSON(key, true, []);
+    }
+    all = all.concat(state.dataCache.statusEvents[key]);
+  }
+  return all;
+}
+
+async function appendInspection(record){
+  var key = monthKeyFor(new Date(record.datetime));
+  var arr = state.dataCache.inspections[key];
+  if (!arr){ arr = await getJSON(key, true, []); }
+  arr.push(record);
+  state.dataCache.inspections[key] = arr;
+  await setJSON(key, true, arr);
+}
+
+async function appendStatusEvent(evt){
+  var key = yearKeyFor(new Date(evt.end));
+  var arr = state.dataCache.statusEvents[key];
+  if (!arr){ arr = await getJSON(key, true, []); }
+  arr.push(evt);
+  state.dataCache.statusEvents[key] = arr;
+  await setJSON(key, true, arr);
+}
+
+async function saveEquipment(){
+  await setJSON('equipment-registry', true, state.equipment);
+}
+
+async function saveInspectorName(name){
+  state.inspectorName = name;
+  await storeSet('last-inspector-name', name, false);
+}
+
+// Close out the unit's current status interval and move it to a new status.
+async function transitionStatus(unit, newStatus, opts){
+  opts = opts || {};
+  var now = Date.now();
+  var closed = {
+    id: 'evt_' + now + '_' + Math.random().toString(36).slice(2,8),
+    unitId: unit.id,
+    categoryCode: unit.categoryCode,
+    status: unit.status,
+    start: unit.statusSince,
+    end: now,
+    reason: unit.status === 'Down' ? (unit.currentReason || 'Unspecified') : null,
+    reasonDetail: unit.status === 'Down' ? (unit.currentReasonDetail || '') : null,
+    reportedBy: unit.status === 'Down' ? (unit.reportedBy || null) : null,
+    resolvedBy: (unit.status === 'Down' && newStatus === 'Operational') ? (opts.actor || null) : null,
+    resolutionNotes: (unit.status === 'Down' && newStatus === 'Operational') ? (opts.notes || '') : null
+  };
+  await appendStatusEvent(closed);
+  unit.status = newStatus;
+  unit.statusSince = now;
+  unit.currentReason = newStatus === 'Down' ? (opts.reason || 'Unspecified') : null;
+  unit.currentReasonDetail = newStatus === 'Down' ? (opts.detail || '') : null;
+  unit.reportedBy = newStatus === 'Down' ? (opts.actor || null) : null;
+  await saveEquipment();
+}
+
+// Build the full interval history for a unit from already-loaded status-event caches, plus the live ongoing interval.
+function getUnitIntervals(unit){
+  var closed = [];
+  var buckets = state.dataCache.statusEvents;
+  for (var key in buckets){
+    if (!Object.prototype.hasOwnProperty.call(buckets,key)) continue;
+    var arr = buckets[key];
+    for (var i=0;i<arr.length;i++){ if (arr[i].unitId === unit.id) closed.push(arr[i]); }
+  }
+  closed.push({
+    unitId: unit.id, categoryCode: unit.categoryCode, status: unit.status,
+    start: unit.statusSince, end: Date.now(),
+    reason: unit.currentReason, reasonDetail: unit.currentReasonDetail,
+    reportedBy: unit.reportedBy, resolvedBy: null, resolutionNotes: null
+  });
+  return closed;
+}
+
+// Sum operational/down durations (ms) for a set of intervals clipped to [rangeStart, rangeEnd].
+function sumIntervals(intervals, rangeStart, rangeEnd){
+  var up=0, down=0, reasons={}, downEventCount=0;
+  intervals.forEach(function(iv){
+    var s = Math.max(iv.start, rangeStart);
+    var e = Math.min(iv.end, rangeEnd);
+    if (e <= s) return;
+    var dur = e - s;
+    if (iv.status === 'Operational'){ up += dur; }
+    else if (iv.status === 'Down'){
+      down += dur;
+      downEventCount++;
+      var key = iv.reason || 'Unspecified';
+      reasons[key] = (reasons[key] || 0) + dur;
+    }
+  });
+  return { up:up, down:down, reasons:reasons, downEventCount:downEventCount };
+}
+
+function pct(up, down){
+  var total = up + down;
+  if (total <= 0) return null;
+  return (up/total) * 100;
+}
+
+function fmtHours(ms){
+  var h = ms/3600000;
+  if (h < 1) return Math.round(ms/60000) + 'm';
+  if (h < 48) return h.toFixed(1) + 'h';
+  return (h/24).toFixed(1) + 'd';
+}
+
+function fmtDateTime(ms){
+  var d = new Date(ms);
+  return d.toLocaleDateString('en-PH', {month:'short', day:'numeric', year:'numeric'}) + ' ' +
+         d.toLocaleTimeString('en-PH', {hour:'2-digit', minute:'2-digit'});
+}
+function timeAgo(ms){
+  var diff = Date.now() - ms;
+  if (diff < 60000) return 'just now';
+  if (diff < 3600000) return Math.round(diff/60000) + 'm ago';
+  if (diff < 86400000) return Math.round(diff/3600000) + 'h ago';
+  return Math.round(diff/86400000) + 'd ago';
+}
+
+function getBaseUrl(){
+  try{
+    var origin = window.location.origin;
+    if (origin && origin !== 'null' && /^https?:\/\//.test(origin)){
+      return origin + window.location.pathname;
+    }
+  }catch(e){}
+  return null;
+}
+
+function csvEscape(v){
+  var s = (v === null || v === undefined) ? '' : String(v);
+  if (/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+function downloadCSV(filename, headers, rows){
+  var lines = [headers.map(csvEscape).join(',')];
+  rows.forEach(function(row){ lines.push(row.map(csvEscape).join(',')); });
+  var blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 500);
+}
+
+function showToast(msg){
+  var slot = document.getElementById('toast-slot');
+  slot.innerHTML = '<div class="toast">' + msg + '</div>';
+  setTimeout(function(){ if (slot.firstChild) slot.innerHTML=''; }, 2600);
+}
+
+// === SECTION: CHARTS ===
+var CHART_COLORS = ['#2f9e5b','#f2a900','#d1453b','#3a6ea5','#8a5cb8','#5b6b73','#c98a2c','#6b8f3c'];
+
+function escapeHtml(s){
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+function svgBarChart(data){
+  // data: [{label, value 0-100}]
+  var width = 520, barHeight = 24, gap = 13, leftW = 128, rightW = 52;
+  var chartW = width - leftW - rightW;
+  var height = data.length * (barHeight+gap) + gap;
+  var out = '';
+  data.forEach(function(d, i){
+    var y = gap + i*(barHeight+gap);
+    var w = Math.max(2, (Math.max(0,Math.min(100,d.value))/100) * chartW);
+    var color = d.value >= 95 ? '#2f9e5b' : (d.value >= 85 ? '#f2a900' : '#d1453b');
+    out += '<text x="'+(leftW-10)+'" y="'+(y+barHeight/2+4)+'" text-anchor="end" font-size="12" fill="#1c2024">'+escapeHtml(d.label)+'</text>';
+    out += '<rect x="'+leftW+'" y="'+y+'" width="'+chartW+'" height="'+barHeight+'" rx="5" fill="#e9ebe4"></rect>';
+    out += '<rect x="'+leftW+'" y="'+y+'" width="'+w+'" height="'+barHeight+'" rx="5" fill="'+color+'"></rect>';
+    out += '<text x="'+(leftW+chartW+10)+'" y="'+(y+barHeight/2+4)+'" font-size="12.5" font-weight="700" fill="#1c2024">'+d.value.toFixed(1)+'%</text>';
+  });
+  return '<svg viewBox="0 0 '+width+' '+height+'" width="100%" style="max-width:'+width+'px" xmlns="http://www.w3.org/2000/svg">'+out+'</svg>';
+}
+
+function svgDonutChart(data){
+  // data: [{label, value, color}] — value in ms or any consistent unit
+  var size = 200, cx = size/2, cy = size/2, r = size/2 - 10, inner = r*0.58;
+  var total = data.reduce(function(s,d){ return s + d.value; }, 0);
+  if (total <= 0){
+    return '<div class="muted" style="padding:30px 6px;text-align:center;">No downtime recorded in this range.</div>';
+  }
+  var paths = '', angle = -90;
+  data.forEach(function(d){
+    var frac = d.value/total;
+    var sweep = Math.min(frac*360, 359.999);
+    var large = sweep > 180 ? 1 : 0;
+    var a0 = angle*Math.PI/180, a1 = (angle+sweep)*Math.PI/180;
+    var x0=cx+r*Math.cos(a0), y0=cy+r*Math.sin(a0);
+    var x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1);
+    var xi0=cx+inner*Math.cos(a0), yi0=cy+inner*Math.sin(a0);
+    var xi1=cx+inner*Math.cos(a1), yi1=cy+inner*Math.sin(a1);
+    var dAttr = 'M'+x0.toFixed(2)+','+y0.toFixed(2)+' A'+r+','+r+' 0 '+large+' 1 '+x1.toFixed(2)+','+y1.toFixed(2)+
+      ' L'+xi1.toFixed(2)+','+yi1.toFixed(2)+' A'+inner+','+inner+' 0 '+large+' 0 '+xi0.toFixed(2)+','+yi0.toFixed(2)+' Z';
+    paths += '<path d="'+dAttr+'" fill="'+d.color+'"></path>';
+    angle += sweep;
+  });
+  return '<svg viewBox="0 0 '+size+' '+size+'" width="200" height="200" xmlns="http://www.w3.org/2000/svg">'+paths+'</svg>';
+}
+
+function svgLineChart(points){
+  // points: [{label, value 0-100}]
+  var width=640, height=170, padL=32, padR=10, padT=12, padB=24;
+  var w=width-padL-padR, h=height-padT-padB, n=points.length;
+  var stepX = n>1 ? w/(n-1) : 0;
+  function xAt(i){ return padL + i*stepX; }
+  function yAt(v){ return padT + h - (Math.max(0,Math.min(100,v))/100)*h; }
+  var path='', dots='', n1=Math.max(1,n-1);
+  points.forEach(function(p,i){
+    path += (i===0?'M':'L') + xAt(i).toFixed(1) + ',' + yAt(p.value).toFixed(1) + ' ';
+  });
+  var areaPath = n ? path + 'L'+xAt(n-1).toFixed(1)+','+(padT+h)+' L'+xAt(0).toFixed(1)+','+(padT+h)+' Z' : '';
+  var grid='';
+  [0,25,50,75,100].forEach(function(g){
+    var y=yAt(g);
+    grid += '<line x1="'+padL+'" y1="'+y+'" x2="'+(padL+w)+'" y2="'+y+'" stroke="#e3e6de" stroke-width="1"></line>';
+    grid += '<text x="'+(padL-7)+'" y="'+(y+3.5)+'" font-size="9.5" text-anchor="end" fill="#6b7280">'+g+'</text>';
+  });
+  var labelEvery = Math.max(1, Math.ceil(n/6));
+  points.forEach(function(p,i){
+    dots += '<circle cx="'+xAt(i).toFixed(1)+'" cy="'+yAt(p.value).toFixed(1)+'" r="3" fill="#1c2024"></circle>';
+    if (i % labelEvery === 0 || i === n-1){
+      dots += '<text x="'+xAt(i).toFixed(1)+'" y="'+(height-6)+'" font-size="9.5" text-anchor="middle" fill="#6b7280">'+escapeHtml(p.label)+'</text>';
+    }
+  });
+  return '<svg viewBox="0 0 '+width+' '+height+'" width="100%" style="max-width:'+width+'px" xmlns="http://www.w3.org/2000/svg">'+
+    grid + '<path d="'+areaPath+'" fill="rgba(47,158,91,0.12)"></path>' +
+    '<path d="'+path.trim()+'" fill="none" stroke="#2f9e5b" stroke-width="2.5"></path>' + dots + '</svg>';
+}
+
+async function computeDailyTrend(days){
+  var end = new Date();
+  var startAnchor = new Date(end.getTime() - (days-1)*86400000);
+  startAnchor.setHours(0,0,0,0);
+  await loadStatusEventsRaw(startAnchor, end);
+  var points = [];
+  var nowMs = Date.now();
+  for (var i=0;i<days;i++){
+    var dayStart = startAnchor.getTime() + i*86400000;
+    var dayEnd = Math.min(dayStart + 86400000, nowMs);
+    if (dayEnd <= dayStart) break;
+    var up=0, down=0;
+    state.equipment.forEach(function(u){
+      var s = sumIntervals(getUnitIntervals(u), dayStart, dayEnd);
+      up += s.up; down += s.down;
+    });
+    var p = pct(up, down);
+    points.push({ label: new Date(dayStart).toLocaleDateString('en-PH',{month:'short',day:'numeric'}), value: (p===null?100:p) });
+  }
+  return points;
+}
+
+async function computeCategoryBreakdown(rangeStart, rangeEnd){
+  await loadStatusEventsRaw(rangeStart, rangeEnd);
+  var byCat = {};
+  Object.keys(CATEGORY_INFO).forEach(function(c){ byCat[c] = {up:0, down:0, total:0}; });
+  state.equipment.forEach(function(u){
+    var s = sumIntervals(getUnitIntervals(u), rangeStart.getTime(), rangeEnd.getTime());
+    byCat[u.categoryCode].up += s.up;
+    byCat[u.categoryCode].down += s.down;
+    byCat[u.categoryCode].total += 1;
+  });
+  return byCat;
+}
+
+async function computeReasonBreakdown(rangeStart, rangeEnd){
+  await loadStatusEventsRaw(rangeStart, rangeEnd);
+  var totals = {};
+  state.equipment.forEach(function(u){
+    var s = sumIntervals(getUnitIntervals(u), rangeStart.getTime(), rangeEnd.getTime());
+    Object.keys(s.reasons).forEach(function(r){ totals[r] = (totals[r]||0) + s.reasons[r]; });
+  });
+  return totals;
+}
+
+// === SECTION: RENDER CORE ===
+function setView(view, opts){
+  opts = opts || {};
+  state.view = view;
+  if (opts.unitId !== undefined) state.currentUnitId = opts.unitId;
+  state.unitSubview = opts.unitSubview || 'detail';
+  render();
+  window.scrollTo({top:0, behavior:'instant'});
+}
+
+function render(){
+  updateNavActive();
+  renderBanner();
+  var root = document.getElementById('view-root');
+  if (!state.loaded){
+    root.innerHTML = '<div class="empty-state">Loading equipment registry…</div>';
+    return;
+  }
+  if (state.view === 'registry') renderRegistry(root);
+  else if (state.view === 'unit') renderUnit(root);
+  else if (state.view === 'reports') renderReportsView(root);
+  else renderDashboard(root);
+}
+
+function updateNavActive(){
+  var buttons = document.querySelectorAll('.nav-btn');
+  for (var i=0;i<buttons.length;i++){
+    var b = buttons[i];
+    var target = b.getAttribute('data-nav');
+    var isActive = (target === state.view) || (state.view === 'unit' && target === 'registry');
+    b.classList.toggle('active', isActive);
+  }
+}
+
+function renderBanner(){
+  var slot = document.getElementById('banner-slot');
+  if (SHEETS_OK && SHEETS_REACHABLE === false){
+    slot.innerHTML = '<div class="banner banner-err">Can\'t reach the Google Sheets backend right now — double-check the Apps Script is deployed with access set to "Anyone," and that the URL pasted into SHEETS_API_URL is correct. Changes in this session won\'t be saved.</div>';
+  } else if (SHEETS_OK){
+    slot.innerHTML = '';
+  } else if (!STORAGE_OK){
+    slot.innerHTML = '<div class="banner">Standalone mode — this page isn\'t connected to shared storage right now, so changes won\'t be saved once you close it. Open this inside Claude, or set SHEETS_API_URL near the top of the script to connect a Google Sheet, for persistent multi-device tracking.</div>';
+  } else {
+    slot.innerHTML = '';
+  }
+}
+
+function renderQRInto(container){
+  var base = getBaseUrl();
+  var nodes = container.querySelectorAll('[data-qr-for]');
+  nodes.forEach(function(qrDiv){
+    var id = qrDiv.getAttribute('data-qr-for');
+    qrDiv.innerHTML = '';
+    var payload = base ? (base + '?unit=' + encodeURIComponent(id)) : id;
+    try{
+      new QRCode(qrDiv, {
+        text: payload, width:84, height:84,
+        colorDark:'#1c2024', colorLight:'#f5f6f2',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }catch(e){
+      qrDiv.innerHTML = '<div style="font-size:9px;color:#999;padding:6px;">QR unavailable</div>';
+    }
+  });
+}
+
+function categoryChipsHtml(activeVar, actionName){
+  var chips = '<div class="chip-row">';
+  chips += '<button class="chip'+(activeVar==='ALL'?' active':'')+'" data-action="'+actionName+'" data-cat="ALL">All</button>';
+  Object.keys(CATEGORY_INFO).forEach(function(c){
+    chips += '<button class="chip'+(activeVar===c?' active':'')+'" data-action="'+actionName+'" data-cat="'+c+'">'+CATEGORY_INFO[c].name+'</button>';
+  });
+  chips += '</div>';
+  return chips;
+}
+
+// === SECTION: RENDER DASHBOARD ===
+function renderDashboard(root){
+  root.innerHTML = '<div class="view" id="dashboard-view"><div class="empty-state">Loading dashboard…</div></div>';
+  loadDashboardData();
+}
+
+async function loadDashboardData(){
+  var range = rangeStartEnd(state.reportRange);
+  var byCat = await computeCategoryBreakdown(range.start, range.end);
+  var reasons = await computeReasonBreakdown(range.start, range.end);
+  var trend = await computeDailyTrend(Math.min(14, state.reportRange));
+  var recentInspections = await loadInspectionsInRange(new Date(Date.now()-7*86400000), new Date());
+  recentInspections.sort(function(a,b){ return b.datetime - a.datetime; });
+  recentInspections = recentInspections.slice(0,10);
+
+  if (state.view !== 'dashboard') return; // user navigated away while loading
+  var el = document.getElementById('dashboard-view');
+  if (!el) return;
+  el.outerHTML = dashboardHtml(byCat, reasons, trend, recentInspections);
+}
+
+function dashboardHtml(byCat, reasons, trend, recentInspections){
+  var totalUp=0, totalDown=0;
+  Object.keys(byCat).forEach(function(c){ totalUp += byCat[c].up; totalDown += byCat[c].down; });
+  var fleetUptime = pct(totalUp, totalDown);
+  var totalUnits = state.equipment.length;
+  var downUnits = state.equipment.filter(function(u){ return u.status === 'Down'; });
+  var upCount = totalUnits - downUnits.length;
+  downUnits.sort(function(a,b){ return a.statusSince - b.statusSince; });
+
+  var html = '<div class="view" id="dashboard-view">';
+
+  html += '<div class="chip-row" style="margin-bottom:16px;">';
+  [7,30,90].forEach(function(d){
+    html += '<button class="chip'+(state.reportRange===d?' active':'')+'" data-action="set-range" data-days="'+d+'">Last '+d+' Days</button>';
+  });
+  html += '<button class="chip'+(state.reportRange===365?' active':'')+'" data-action="set-range" data-days="365">Last Year</button>';
+  html += '</div>';
+
+  html += '<div class="kpi-row" style="margin-bottom:18px;">';
+  html += '<div class="kpi-card"><div class="kpi-value">'+totalUnits+'</div><div class="kpi-label">Fleet Size</div></div>';
+  html += '<div class="kpi-card"><div class="kpi-value">'+upCount+'</div><div class="kpi-label">Operational Now</div></div>';
+  html += '<div class="kpi-card is-down"><div class="kpi-value">'+downUnits.length+'</div><div class="kpi-label">Down Now</div></div>';
+  html += '<div class="kpi-card"><div class="kpi-value">'+(fleetUptime===null?'—':fleetUptime.toFixed(1)+'%')+'</div><div class="kpi-label">Fleet Uptime</div></div>';
+  html += '</div>';
+
+  html += '<div class="grid grid-2">';
+
+  html += '<div class="panel">';
+  html += '<div class="panel-head"><div><div class="panel-title">Down Right Now</div><div class="panel-sub">'+downUnits.length+' unit'+(downUnits.length===1?'':'s')+' need attention</div></div></div>';
+  if (!downUnits.length){
+    html += '<div class="empty-state">Nothing down — every unit is operational.</div>';
+  } else {
+    html += '<div class="table-wrap"><table><thead><tr><th>Unit</th><th>Category</th><th>Reason</th><th>Down For</th></tr></thead><tbody>';
+    downUnits.forEach(function(u){
+      html += '<tr style="cursor:pointer" data-action="open-unit" data-id="'+u.id+'">' +
+        '<td class="mono">'+u.id+'</td><td>'+CATEGORY_INFO[u.categoryCode].name+'</td>' +
+        '<td>'+escapeHtml(u.currentReason||'Unspecified')+'</td>' +
+        '<td><strong>'+fmtHours(Date.now()-u.statusSince)+'</strong></td></tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+  html += '</div>';
+
+  html += '<div class="panel">';
+  html += '<div class="panel-head"><div><div class="panel-title">Uptime by Category</div><div class="panel-sub">Selected range</div></div></div>';
+  var barData = Object.keys(CATEGORY_INFO).map(function(c){
+    var p = pct(byCat[c].up, byCat[c].down);
+    return { label: CATEGORY_INFO[c].name, value: (p===null?100:p) };
+  });
+  html += '<div class="chart-box">'+svgBarChart(barData)+'</div>';
+  html += '</div>';
+
+  html += '</div>';
+
+  html += '<div class="grid grid-2" style="margin-top:16px;">';
+
+  html += '<div class="panel">';
+  html += '<div class="panel-head"><div><div class="panel-title">Fleet Uptime Trend</div><div class="panel-sub">Last '+trend.length+' days</div></div></div>';
+  html += '<div class="chart-box">'+svgLineChart(trend)+'</div>';
+  html += '</div>';
+
+  html += '<div class="panel">';
+  html += '<div class="panel-head"><div><div class="panel-title">Downtime Causes</div><div class="panel-sub">Selected range</div></div></div>';
+  var reasonKeys = Object.keys(reasons);
+  var donutData = reasonKeys.map(function(r,i){ return {label:r, value:reasons[r], color:CHART_COLORS[i%CHART_COLORS.length]}; });
+  donutData.sort(function(a,b){ return b.value-a.value; });
+  html += '<div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">';
+  html += svgDonutChart(donutData);
+  if (donutData.length){
+    html += '<div class="legend" style="flex-direction:column;">';
+    donutData.forEach(function(d){
+      html += '<div class="legend-item"><span class="legend-swatch" style="background:'+d.color+'"></span>'+escapeHtml(d.label)+' — '+fmtHours(d.value)+'</div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  html += '</div>';
+
+  html += '</div>';
+
+  html += '<div class="panel" style="margin-top:16px;">';
+  html += '<div class="panel-head"><div><div class="panel-title">Recent Inspections</div><div class="panel-sub">Last 7 days</div></div></div>';
+  if (!recentInspections.length){
+    html += '<div class="empty-state">No inspections logged in the last 7 days yet. Scan a unit\'s tag to run the first one.</div>';
+  } else {
+    html += '<div class="table-wrap"><table><thead><tr><th>Unit</th><th>Inspector</th><th>Result</th><th>When</th></tr></thead><tbody>';
+    recentInspections.forEach(function(r){
+      html += '<tr style="cursor:pointer" data-action="open-unit" data-id="'+r.unitId+'">' +
+        '<td class="mono">'+r.unitId+'</td><td>'+escapeHtml(r.inspectorName)+'</td>' +
+        '<td><span class="badge '+(r.overallResult==='Pass'?'up':'down')+'">'+r.overallResult+'</span></td>' +
+        '<td class="muted">'+timeAgo(r.datetime)+'</td></tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+  html += '</div>';
+
+  html += '</div>';
+  return html;
+}
+
+// === SECTION: RENDER REGISTRY ===
+function renderRegistry(root){
+  root.innerHTML = '<div class="view">' + registryShellHtml() + '</div>';
+  updatePlateGrid();
+}
+
+function registryShellHtml(){
+  var base = getBaseUrl();
+  var hint = base
+    ? 'Scanning a tag opens this exact tool to that unit.'
+    : 'Preview mode — host this file at a public URL so tags scan to a live link (see notes below).';
+  return '<div class="panel">' +
+    '<div class="panel-head"><div><div class="panel-title">Equipment &amp; QR Tags</div>' +
+    '<div class="panel-sub">'+state.equipment.length+' units · '+hint+'</div></div>' +
+    '<button class="btn btn-outline btn-sm no-print" data-action="print-tags">Print QR Tags</button></div>' +
+    '<div class="filter-row no-print">' +
+      '<input class="input search-input" id="registry-search" placeholder="Search unit ID or name…" value="'+escapeHtml(state.registrySearch)+'">' +
+    '</div>' +
+    '<div class="no-print" style="margin-bottom:14px;">' + categoryChipsHtml(state.registryFilter, 'set-registry-filter') + '</div>' +
+    '<div id="plate-grid-slot"></div>' +
+  '</div>';
+}
+
+function plateGridHtml(){
+  var list = state.equipment.filter(function(u){
+    if (state.registryFilter !== 'ALL' && u.categoryCode !== state.registryFilter) return false;
+    if (state.registrySearch){
+      var q = state.registrySearch.toLowerCase();
+      if (u.id.toLowerCase().indexOf(q) === -1 && u.label.toLowerCase().indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+  if (!list.length) return '<div class="empty-state">No units match that search.</div>';
+  var html = '<div class="plate-grid">';
+  list.forEach(function(u){ html += plateHtml(u); });
+  html += '</div>';
+  return html;
+}
+
+function plateHtml(u){
+  return '<div class="plate" data-action="open-unit" data-id="'+u.id+'">' +
+    '<div class="plate-qr" data-qr-for="'+u.id+'"></div>' +
+    '<div class="plate-id">'+u.id+'</div>' +
+    '<div class="plate-label">'+escapeHtml(u.label)+'</div>' +
+    '<div class="plate-status">' +
+      '<span class="badge '+(u.status==='Operational'?'up':'down')+'">'+(u.status==='Operational'?'Operational':'Down')+'</span>' +
+    '</div>' +
+  '</div>';
+}
+
+function updatePlateGrid(){
+  var slot = document.getElementById('plate-grid-slot');
+  if (!slot) return;
+  slot.innerHTML = plateGridHtml();
+  renderQRInto(slot);
+}
+
+function printQRTags(){
+  state.registryFilter = 'ALL';
+  state.registrySearch = '';
+  render();
+  setTimeout(function(){ window.print(); }, 150);
+}
+
+// === SECTION: RENDER UNIT ===
+function renderUnit(root){
+  var unit = findUnit(state.currentUnitId);
+  if (!unit){
+    root.innerHTML = '<div class="view"><div class="panel"><div class="empty-state">' +
+      'We couldn\'t find a unit called "'+escapeHtml(state.currentUnitId||'')+'". It may have been renamed or removed.' +
+      '<div style="margin-top:14px;"><button class="btn btn-primary" data-action="nav" data-target="registry">Back to Equipment</button></div>' +
+      '</div></div></div>';
+    return;
+  }
+  if (state.unitSubview === 'inspect'){ renderInspectForm(root, unit); return; }
+  if (state.unitSubview === 'breakdown'){ renderBreakdownForm(root, unit); return; }
+  if (state.unitSubview === 'rts'){ renderReturnForm(root, unit); return; }
+  if (state.unitSubview === 'edit'){ renderEditForm(root, unit); return; }
+  renderUnitDetail(root, unit);
+}
+
+function renderUnitDetail(root, unit){
+  root.innerHTML = '<div class="view" id="unit-view">' + unitDetailShellHtml(unit) + '</div>';
+  renderQRInto(document.getElementById('unit-view'));
+  loadUnitHistory(unit);
+}
+
+function unitDetailShellHtml(unit){
+  var isUp = unit.status === 'Operational';
+  var html = '<div class="back-link no-print" data-action="nav" data-target="registry">&larr; Back to Equipment</div>';
+  html += '<div class="panel">';
+  html += '<div class="unit-hero">';
+  html += '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">';
+  html += '<div class="plate" style="cursor:default;width:110px;"><div class="plate-qr" data-qr-for="'+unit.id+'"></div><div class="plate-id">'+unit.id+'</div></div>';
+  html += '<div>';
+  html += '<div class="unit-hero-id">'+escapeHtml(unit.label)+'</div>';
+  html += '<div class="muted">'+CATEGORY_INFO[unit.categoryCode].full+' · '+escapeHtml(unit.location)+'</div>';
+  html += '<div style="margin-top:8px;"><span class="status-dot '+(isUp?'up':'down')+'"></span><span class="badge '+(isUp?'up':'down')+'">'+(isUp?'Operational':'Down')+'</span></div>';
+  html += '</div></div>';
+  html += '<button class="btn btn-outline btn-sm no-print" data-action="open-edit" data-id="'+unit.id+'">Edit Info</button>';
+  html += '</div>';
+
+  if (!isUp){
+    html += '<div class="banner banner-err" style="margin-top:14px;">' +
+      '<strong>Down since '+fmtDateTime(unit.statusSince)+'</strong> ('+fmtHours(Date.now()-unit.statusSince)+') — ' +
+      escapeHtml(unit.currentReason || 'Unspecified') +
+      (unit.currentReasonDetail ? ': ' + escapeHtml(unit.currentReasonDetail) : '') +
+      (unit.reportedBy ? ' · reported by ' + escapeHtml(unit.reportedBy) : '') +
+      '</div>';
+  }
+
+  html += '<div class="btn-row no-print" style="margin-top:14px;">';
+  html += '<button class="btn btn-primary" data-action="open-inspect" data-id="'+unit.id+'">Start Daily Inspection</button>';
+  if (isUp){
+    html += '<button class="btn btn-danger" data-action="open-breakdown" data-id="'+unit.id+'">Report Breakdown</button>';
+  } else {
+    html += '<button class="btn btn-go" data-action="open-rts" data-id="'+unit.id+'">Return to Service</button>';
+  }
+  html += '</div>';
+  html += '</div>';
+
+  html += '<div class="panel no-print" style="margin-top:16px;" id="unit-history-slot"><div class="empty-state">Loading history…</div></div>';
+  return html;
+}
+
+async function loadUnitHistory(unit){
+  var range = rangeStartEnd(90);
+  var inspections = await loadInspectionsInRange(range.start, range.end);
+  inspections = inspections.filter(function(r){ return r.unitId === unit.id; });
+  inspections.sort(function(a,b){ return b.datetime - a.datetime; });
+  await loadStatusEventsRaw(range.start, range.end);
+  var intervals = getUnitIntervals(unit).filter(function(iv){ return iv.status === 'Down' && iv.end > range.start.getTime(); });
+  intervals.sort(function(a,b){ return b.end - a.end; });
+
+  if (state.view !== 'unit' || state.currentUnitId !== unit.id) return;
+  var slot = document.getElementById('unit-history-slot');
+  if (!slot) return;
+
+  var html = '<div class="panel-title" style="margin-bottom:10px;">History (Last 90 Days)</div>';
+  html += '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:4px 0 8px;">Inspections ('+inspections.length+')</div>';
+  if (!inspections.length){
+    html += '<div class="empty-state" style="padding:12px 0;">No inspections logged yet for this unit.</div>';
+  } else {
+    html += '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Inspector</th><th>Result</th><th>Remarks</th></tr></thead><tbody>';
+    inspections.slice(0,15).forEach(function(r){
+      html += '<tr><td class="muted">'+fmtDateTime(r.datetime)+'</td><td>'+escapeHtml(r.inspectorName)+'</td>' +
+        '<td><span class="badge '+(r.overallResult==='Pass'?'up':'down')+'">'+r.overallResult+'</span></td>' +
+        '<td>'+escapeHtml(r.remarks || '—')+'</td></tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+
+  html += '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:18px 0 8px;">Downtime Events ('+intervals.length+')</div>';
+  if (!intervals.length){
+    html += '<div class="empty-state" style="padding:12px 0;">No downtime recorded in the last 90 days.</div>';
+  } else {
+    html += '<div class="table-wrap"><table><thead><tr><th>Start</th><th>End</th><th>Duration</th><th>Reason</th><th>Resolved By</th></tr></thead><tbody>';
+    intervals.slice(0,15).forEach(function(iv){
+      html += '<tr><td class="muted">'+fmtDateTime(iv.start)+'</td><td class="muted">'+(iv.end>=Date.now()-1000?'<em>ongoing</em>':fmtDateTime(iv.end))+'</td>' +
+        '<td><strong>'+fmtHours(iv.end-iv.start)+'</strong></td>' +
+        '<td>'+escapeHtml(iv.reason||'—')+(iv.reasonDetail?' — '+escapeHtml(iv.reasonDetail):'')+'</td>' +
+        '<td>'+escapeHtml(iv.resolvedBy||'—')+'</td></tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+  slot.innerHTML = html;
+}
+
+function renderInspectForm(root, unit){
+  var checklist = CHECKLISTS[unit.categoryCode];
+  if (state._inspectFormUnit !== unit.id){
+    state.currentAnswers = {};
+    state._inspectFormUnit = unit.id;
+  }
+  var html = '<div class="view">';
+  html += '<div class="back-link" data-action="open-unit" data-id="'+unit.id+'">&larr; Back to '+unit.id+'</div>';
+  html += '<div class="panel">';
+  html += '<div class="panel-head"><div><div class="panel-title">Daily Inspection — '+unit.id+'</div>' +
+    '<div class="panel-sub">'+escapeHtml(unit.label)+' · '+CATEGORY_INFO[unit.categoryCode].full+'</div></div></div>';
+
+  html += '<div class="grid grid-2" style="margin-bottom:6px;">';
+  html += '<div class="field"><label>Inspector Name</label><input class="input" id="inspector-name" value="'+escapeHtml(state.inspectorName||'')+'" placeholder="Full name"></div>';
+  html += '<div class="field"><label>Shift</label><select class="select" id="inspect-shift"><option value="">—</option>' +
+    SHIFTS.map(function(s){ return '<option value="'+s+'">'+s+'</option>'; }).join('') + '</select></div>';
+  html += '</div>';
+
+  checklist.items.forEach(function(item){
+    var sel = state.currentAnswers[item.id];
+    html += '<div class="check-item"><div class="check-item-label">'+item.label+'</div>' +
+      '<div class="toggle-group">' +
+      '<button type="button" class="toggle-btn'+(sel==='Pass'?' sel-pass':'')+'" data-action="toggle-check" data-item="'+item.id+'" data-value="Pass">Pass</button>' +
+      '<button type="button" class="toggle-btn'+(sel==='Fail'?' sel-fail':'')+'" data-action="toggle-check" data-item="'+item.id+'" data-value="Fail">Fail</button>' +
+      '<button type="button" class="toggle-btn'+(sel==='NA'?' sel-na':'')+'" data-action="toggle-check" data-item="'+item.id+'" data-value="NA">N/A</button>' +
+      '</div></div>';
+  });
+
+  html += '<div class="field"><label>Remarks (required if anything failed)</label><textarea class="textarea" id="inspect-remarks" placeholder="Describe any issues found…"></textarea></div>';
+  html += '<div class="btn-row"><button class="btn btn-primary" data-action="submit-inspection" data-id="'+unit.id+'">Save Inspection</button>' +
+    '<button class="btn btn-outline" data-action="open-unit" data-id="'+unit.id+'">Cancel</button></div>';
+  html += '</div></div>';
+  root.innerHTML = html;
+}
+
+async function submitInspection(unitId){
+  var unit = findUnit(unitId);
+  if (!unit) return;
+  var checklist = CHECKLISTS[unit.categoryCode];
+  var missing = checklist.items.filter(function(item){ return !state.currentAnswers[item.id]; });
+  if (missing.length){ showToast('Please answer all '+checklist.items.length+' checklist items.'); return; }
+
+  var nameInput = document.getElementById('inspector-name');
+  var name = nameInput ? nameInput.value.trim() : '';
+  if (!name){ showToast('Please enter the inspector name.'); if (nameInput) nameInput.focus(); return; }
+
+  var shiftSel = document.getElementById('inspect-shift');
+  var shift = shiftSel ? shiftSel.value : '';
+  var remarksEl = document.getElementById('inspect-remarks');
+  var typedRemarks = remarksEl ? remarksEl.value.trim() : '';
+
+  var failedItems = checklist.items.filter(function(item){ return state.currentAnswers[item.id] === 'Fail'; });
+  var overallResult = failedItems.length ? 'Fail' : 'Pass';
+  var autoNote = failedItems.length ? ('Failed: ' + failedItems.map(function(i){ return i.label; }).join('; ')) : '';
+  var finalRemarks = autoNote ? (autoNote + (typedRemarks ? ' — ' + typedRemarks : '')) : typedRemarks;
+
+  var record = {
+    id: 'insp_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
+    unitId: unit.id, categoryCode: unit.categoryCode,
+    inspectorName: name, shift: shift, datetime: Date.now(),
+    results: Object.assign({}, state.currentAnswers),
+    remarks: finalRemarks, overallResult: overallResult
+  };
+  await appendInspection(record);
+  unit.lastInspection = record.datetime;
+
+  if (overallResult === 'Fail' && unit.status !== 'Down'){
+    await transitionStatus(unit, 'Down', {
+      reason: 'Failed Inspection', actor: name,
+      detail: failedItems.length + ' item(s) failed — see inspection remarks'
+    });
+  } else {
+    await saveEquipment();
+  }
+  await saveInspectorName(name);
+  state.currentAnswers = {};
+  showToast(overallResult === 'Pass' ? 'Inspection saved — unit passed.' : 'Inspection saved — unit flagged down.');
+  setView('unit', { unitId: unit.id, unitSubview: 'detail' });
+}
+
+function renderBreakdownForm(root, unit){
+  var html = '<div class="view">';
+  html += '<div class="back-link" data-action="open-unit" data-id="'+unit.id+'">&larr; Back to '+unit.id+'</div>';
+  html += '<div class="panel">';
+  html += '<div class="panel-head"><div><div class="panel-title">Report Breakdown — '+unit.id+'</div><div class="panel-sub">'+escapeHtml(unit.label)+'</div></div></div>';
+  html += '<div class="field"><label>Reason Category</label><select class="select" id="breakdown-reason">' +
+    DOWNTIME_REASONS.filter(function(r){ return r !== 'Failed Inspection'; }).map(function(r){ return '<option value="'+r+'">'+r+'</option>'; }).join('') +
+    '</select></div>';
+  html += '<div class="field"><label>Details</label><textarea class="textarea" id="breakdown-detail" placeholder="What happened?"></textarea></div>';
+  html += '<div class="field"><label>Reported By</label><input class="input" id="breakdown-reporter" value="'+escapeHtml(state.inspectorName||'')+'" placeholder="Full name"></div>';
+  html += '<div class="btn-row"><button class="btn btn-danger" data-action="submit-breakdown" data-id="'+unit.id+'">Mark as Down</button>' +
+    '<button class="btn btn-outline" data-action="open-unit" data-id="'+unit.id+'">Cancel</button></div>';
+  html += '</div></div>';
+  root.innerHTML = html;
+}
+
+async function submitBreakdown(unitId){
+  var unit = findUnit(unitId);
+  if (!unit) return;
+  if (unit.status === 'Down'){ showToast('This unit is already marked down.'); return; }
+  var reasonSel = document.getElementById('breakdown-reason');
+  var reason = reasonSel ? reasonSel.value : 'Other';
+  var detailEl = document.getElementById('breakdown-detail');
+  var detail = detailEl ? detailEl.value.trim() : '';
+  var reporterInput = document.getElementById('breakdown-reporter');
+  var reporter = reporterInput ? reporterInput.value.trim() : '';
+  if (!reporter){ showToast('Please enter who is reporting this.'); if (reporterInput) reporterInput.focus(); return; }
+
+  await transitionStatus(unit, 'Down', { reason: reason, actor: reporter, detail: detail });
+  await saveInspectorName(reporter);
+  showToast('Unit marked down.');
+  setView('unit', { unitId: unit.id, unitSubview: 'detail' });
+}
+
+function renderReturnForm(root, unit){
+  var html = '<div class="view">';
+  html += '<div class="back-link" data-action="open-unit" data-id="'+unit.id+'">&larr; Back to '+unit.id+'</div>';
+  html += '<div class="panel">';
+  html += '<div class="panel-head"><div><div class="panel-title">Return to Service — '+unit.id+'</div>' +
+    '<div class="panel-sub">Down for '+fmtHours(Date.now()-unit.statusSince)+' · '+escapeHtml(unit.currentReason||'Unspecified')+'</div></div></div>';
+  html += '<div class="field"><label>Resolution Notes</label><textarea class="textarea" id="rts-notes" placeholder="What was done to fix it?"></textarea></div>';
+  html += '<div class="field"><label>Confirmed By</label><input class="input" id="rts-actor" value="'+escapeHtml(state.inspectorName||'')+'" placeholder="Technician / supervisor name"></div>';
+  html += '<div class="btn-row"><button class="btn btn-go" data-action="submit-rts" data-id="'+unit.id+'">Confirm Back in Service</button>' +
+    '<button class="btn btn-outline" data-action="open-unit" data-id="'+unit.id+'">Cancel</button></div>';
+  html += '</div></div>';
+  root.innerHTML = html;
+}
+
+async function submitReturnToService(unitId){
+  var unit = findUnit(unitId);
+  if (!unit) return;
+  if (unit.status !== 'Down'){ showToast('This unit is not currently marked down.'); return; }
+  var notesEl = document.getElementById('rts-notes');
+  var notes = notesEl ? notesEl.value.trim() : '';
+  var actorInput = document.getElementById('rts-actor');
+  var actor = actorInput ? actorInput.value.trim() : '';
+  if (!actor){ showToast('Please enter who is confirming this.'); if (actorInput) actorInput.focus(); return; }
+
+  await transitionStatus(unit, 'Operational', { actor: actor, notes: notes });
+  await saveInspectorName(actor);
+  showToast('Unit returned to service.');
+  setView('unit', { unitId: unit.id, unitSubview: 'detail' });
+}
+
+function renderEditForm(root, unit){
+  var html = '<div class="view">';
+  html += '<div class="back-link" data-action="open-unit" data-id="'+unit.id+'">&larr; Back to '+unit.id+'</div>';
+  html += '<div class="panel">';
+  html += '<div class="panel-head"><div class="panel-title">Edit Info — '+unit.id+'</div></div>';
+  html += '<div class="field"><label>Display Label</label><input class="input" id="edit-label" value="'+escapeHtml(unit.label)+'"></div>';
+  html += '<div class="field"><label>Location</label><input class="input" id="edit-location" value="'+escapeHtml(unit.location)+'"></div>';
+  html += '<div class="btn-row"><button class="btn btn-primary" data-action="submit-edit" data-id="'+unit.id+'">Save Changes</button>' +
+    '<button class="btn btn-outline" data-action="open-unit" data-id="'+unit.id+'">Cancel</button></div>';
+  html += '</div></div>';
+  root.innerHTML = html;
+}
+
+async function submitEditUnit(unitId){
+  var unit = findUnit(unitId);
+  if (!unit) return;
+  var labelEl = document.getElementById('edit-label');
+  var locEl = document.getElementById('edit-location');
+  var label = labelEl ? labelEl.value.trim() : unit.label;
+  var loc = locEl ? locEl.value.trim() : unit.location;
+  unit.label = label || unit.label;
+  unit.location = loc || unit.location;
+  await saveEquipment();
+  showToast('Unit info updated.');
+  setView('unit', { unitId: unit.id, unitSubview: 'detail' });
+}
+
+// === SECTION: RENDER REPORTS ===
+function renderReportsView(root){
+  root.innerHTML = '<div class="view" id="reports-view">' + reportsShellHtml() + '</div>';
+  loadReportsData();
+}
+
+function reportsShellHtml(){
+  var html = '<div class="panel">';
+  html += '<div class="panel-head"><div><div class="panel-title">Reports</div><div class="panel-sub">Audit trail for inspections, downtime, and uptime</div></div></div>';
+  html += '<div class="chip-row" style="margin-bottom:12px;">';
+  [7,30,90].forEach(function(d){
+    html += '<button class="chip'+(state.reportRange===d?' active':'')+'" data-action="set-range" data-days="'+d+'">Last '+d+' Days</button>';
+  });
+  html += '<button class="chip'+(state.reportRange===365?' active':'')+'" data-action="set-range" data-days="365">Last Year</button>';
+  html += '</div>';
+  html += categoryChipsHtml(state.reportCategory, 'set-report-category');
+  html += '<div class="tabs" style="margin-top:14px;">';
+  var labelMap = {inspections:'Inspections Log', events:'Downtime Events', summary:'Uptime Summary'};
+  ['inspections','events','summary'].forEach(function(t){
+    html += '<button class="tab-btn'+(state.reportTab===t?' active':'')+'" data-action="set-report-tab" data-tab="'+t+'">'+labelMap[t]+'</button>';
+  });
+  html += '</div>';
+  html += '<div id="reports-content-slot"><div class="empty-state">Loading…</div></div>';
+  html += '</div>';
+  return html;
+}
+
+async function loadReportsData(){
+  var range = rangeStartEnd(state.reportRange);
+  var inspections = await loadInspectionsInRange(range.start, range.end);
+  await loadStatusEventsRaw(range.start, range.end);
+
+  if (state.reportCategory !== 'ALL'){
+    inspections = inspections.filter(function(r){ return r.categoryCode === state.reportCategory; });
+  }
+  inspections.sort(function(a,b){ return b.datetime - a.datetime; });
+
+  var events = [];
+  state.equipment.forEach(function(u){
+    if (state.reportCategory !== 'ALL' && u.categoryCode !== state.reportCategory) return;
+    getUnitIntervals(u).filter(function(iv){ return iv.status === 'Down'; }).forEach(function(iv){
+      var s = Math.max(iv.start, range.start.getTime());
+      var e = Math.min(iv.end, range.end.getTime());
+      if (e > s) events.push(Object.assign({}, iv, {clippedStart:s, clippedEnd:e}));
+    });
+  });
+  events.sort(function(a,b){ return b.end - a.end; });
+
+  var summaryRows = state.equipment
+    .filter(function(u){ return state.reportCategory === 'ALL' || u.categoryCode === state.reportCategory; })
+    .map(function(u){
+      var s = sumIntervals(getUnitIntervals(u), range.start.getTime(), range.end.getTime());
+      return { unit:u, uptime: pct(s.up,s.down), downMs:s.down, downCount:s.downEventCount, mttr: s.downEventCount ? (s.down/s.downEventCount) : 0 };
+    });
+  summaryRows.sort(function(a,b){
+    var pa = a.uptime===null?101:a.uptime, pb = b.uptime===null?101:b.uptime;
+    return pa - pb;
+  });
+
+  if (state.view !== 'reports') return;
+  var slot = document.getElementById('reports-content-slot');
+  if (!slot) return;
+  state._reportsCache = { inspections:inspections, events:events, summaryRows:summaryRows };
+
+  if (state.reportTab === 'inspections') slot.innerHTML = inspectionsTableHtml(inspections);
+  else if (state.reportTab === 'events') slot.innerHTML = eventsTableHtml(events);
+  else slot.innerHTML = summaryTableHtml(summaryRows);
+}
+
+function inspectionsTableHtml(rows){
+  var html = '<div class="btn-row no-print" style="margin-bottom:12px;"><button class="btn btn-outline btn-sm" data-action="export-inspections">Export CSV</button></div>';
+  if (!rows.length){ html += '<div class="empty-state">No inspections in this range.</div>'; return html; }
+  html += '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Unit</th><th>Category</th><th>Inspector</th><th>Shift</th><th>Result</th><th>Remarks</th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    html += '<tr><td class="muted">'+fmtDateTime(r.datetime)+'</td><td class="mono">'+r.unitId+'</td>' +
+      '<td>'+CATEGORY_INFO[r.categoryCode].name+'</td><td>'+escapeHtml(r.inspectorName)+'</td><td>'+escapeHtml(r.shift||'—')+'</td>' +
+      '<td><span class="badge '+(r.overallResult==='Pass'?'up':'down')+'">'+r.overallResult+'</span></td>' +
+      '<td>'+escapeHtml(r.remarks||'—')+'</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function eventsTableHtml(rows){
+  var html = '<div class="btn-row no-print" style="margin-bottom:12px;"><button class="btn btn-outline btn-sm" data-action="export-events">Export CSV</button></div>';
+  if (!rows.length){ html += '<div class="empty-state">No downtime events in this range.</div>'; return html; }
+  html += '<div class="table-wrap"><table><thead><tr><th>Unit</th><th>Category</th><th>Start</th><th>End</th><th>Duration</th><th>Reason</th><th>Reported By</th><th>Resolved By</th></tr></thead><tbody>';
+  rows.forEach(function(iv){
+    var ongoing = iv.end >= Date.now()-1000;
+    html += '<tr><td class="mono">'+iv.unitId+'</td><td>'+CATEGORY_INFO[iv.categoryCode].name+'</td>' +
+      '<td class="muted">'+fmtDateTime(iv.clippedStart)+'</td><td class="muted">'+(ongoing?'<em>ongoing</em>':fmtDateTime(iv.clippedEnd))+'</td>' +
+      '<td><strong>'+fmtHours(iv.clippedEnd-iv.clippedStart)+'</strong></td>' +
+      '<td>'+escapeHtml(iv.reason||'—')+(iv.reasonDetail?' — '+escapeHtml(iv.reasonDetail):'')+'</td>' +
+      '<td>'+escapeHtml(iv.reportedBy||'—')+'</td><td>'+escapeHtml(iv.resolvedBy||'—')+'</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function summaryTableHtml(rows){
+  var html = '<div class="table-wrap"><table><thead><tr><th>Unit</th><th>Category</th><th>Status</th><th>Uptime %</th><th>Downtime</th><th>Down Events</th><th>MTTR</th></tr></thead><tbody>';
+  rows.forEach(function(row){
+    var u = row.unit;
+    html += '<tr style="cursor:pointer" data-action="open-unit" data-id="'+u.id+'">' +
+      '<td class="mono">'+u.id+'</td><td>'+CATEGORY_INFO[u.categoryCode].name+'</td>' +
+      '<td><span class="badge '+(u.status==='Operational'?'up':'down')+'">'+(u.status==='Operational'?'Up':'Down')+'</span></td>' +
+      '<td>'+(row.uptime===null?'—':row.uptime.toFixed(1)+'%')+'</td>' +
+      '<td>'+fmtHours(row.downMs)+'</td><td>'+row.downCount+'</td>' +
+      '<td>'+(row.mttr?fmtHours(row.mttr):'—')+'</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function setReportTab(tab){
+  state.reportTab = tab;
+  if (state._reportsCache){
+    var slot = document.getElementById('reports-content-slot');
+    if (slot){
+      if (tab === 'inspections') slot.innerHTML = inspectionsTableHtml(state._reportsCache.inspections);
+      else if (tab === 'events') slot.innerHTML = eventsTableHtml(state._reportsCache.events);
+      else slot.innerHTML = summaryTableHtml(state._reportsCache.summaryRows);
+      document.querySelectorAll('.tab-btn').forEach(function(b){
+        b.classList.toggle('active', b.getAttribute('data-tab') === state.reportTab);
+      });
+      return;
+    }
+  }
+  render();
+}
+
+function exportInspectionsCSV(){
+  var rows = (state._reportsCache && state._reportsCache.inspections) || [];
+  var headers = ['Date','Unit','Category','Inspector','Shift','Result','Remarks'];
+  var data = rows.map(function(r){
+    return [fmtDateTime(r.datetime), r.unitId, CATEGORY_INFO[r.categoryCode].name, r.inspectorName, r.shift||'', r.overallResult, r.remarks||''];
+  });
+  downloadCSV('inspections_' + Date.now() + '.csv', headers, data);
+}
+function exportEventsCSV(){
+  var rows = (state._reportsCache && state._reportsCache.events) || [];
+  var headers = ['Unit','Category','Start','End','Duration (h)','Reason','Detail','Reported By','Resolved By','Resolution Notes'];
+  var data = rows.map(function(iv){
+    return [iv.unitId, CATEGORY_INFO[iv.categoryCode].name, fmtDateTime(iv.clippedStart),
+      (iv.end>=Date.now()-1000?'ongoing':fmtDateTime(iv.clippedEnd)),
+      ((iv.clippedEnd-iv.clippedStart)/3600000).toFixed(2),
+      iv.reason||'', iv.reasonDetail||'', iv.reportedBy||'', iv.resolvedBy||'', iv.resolutionNotes||''];
+  });
+  downloadCSV('downtime_events_' + Date.now() + '.csv', headers, data);
+}
+
+// === SECTION: EVENTS ===
+function handleToggleCheck(btn){
+  var item = btn.getAttribute('data-item');
+  var value = btn.getAttribute('data-value');
+  state.currentAnswers[item] = value;
+  var siblings = btn.parentElement.querySelectorAll('.toggle-btn');
+  siblings.forEach(function(sib){ sib.classList.remove('sel-pass','sel-fail','sel-na'); });
+  if (value === 'Pass') btn.classList.add('sel-pass');
+  else if (value === 'Fail') btn.classList.add('sel-fail');
+  else btn.classList.add('sel-na');
+}
+
+function updateRegistryChipsActive(){
+  document.querySelectorAll('[data-action="set-registry-filter"]').forEach(function(c){
+    c.classList.toggle('active', c.getAttribute('data-cat') === state.registryFilter);
+  });
+}
+
+document.addEventListener('click', function(e){
+  var navBtn = e.target.closest('.nav-btn[data-nav]');
+  if (navBtn){ setView(navBtn.getAttribute('data-nav')); return; }
+
+  var el = e.target.closest('[data-action]');
+  if (!el) return;
+  var action = el.getAttribute('data-action');
+  var id = el.getAttribute('data-id');
+
+  if (action === 'open-unit') setView('unit', {unitId:id, unitSubview:'detail'});
+  else if (action === 'open-inspect') setView('unit', {unitId:id, unitSubview:'inspect'});
+  else if (action === 'open-breakdown') setView('unit', {unitId:id, unitSubview:'breakdown'});
+  else if (action === 'open-rts') setView('unit', {unitId:id, unitSubview:'rts'});
+  else if (action === 'open-edit') setView('unit', {unitId:id, unitSubview:'edit'});
+  else if (action === 'submit-inspection') submitInspection(id);
+  else if (action === 'submit-breakdown') submitBreakdown(id);
+  else if (action === 'submit-rts') submitReturnToService(id);
+  else if (action === 'submit-edit') submitEditUnit(id);
+  else if (action === 'toggle-check') handleToggleCheck(el);
+  else if (action === 'set-range'){ state.reportRange = parseInt(el.getAttribute('data-days'),10); render(); }
+  else if (action === 'set-report-tab') setReportTab(el.getAttribute('data-tab'));
+  else if (action === 'set-report-category'){ state.reportCategory = el.getAttribute('data-cat'); render(); }
+  else if (action === 'set-registry-filter'){ state.registryFilter = el.getAttribute('data-cat'); updatePlateGrid(); updateRegistryChipsActive(); }
+  else if (action === 'print-tags') printQRTags();
+  else if (action === 'export-inspections') exportInspectionsCSV();
+  else if (action === 'export-events') exportEventsCSV();
+});
+
+document.addEventListener('input', function(e){
+  if (e.target && e.target.id === 'registry-search'){
+    state.registrySearch = e.target.value;
+    updatePlateGrid();
+  }
+});
+
+// === SECTION: BOOT ===
+async function init(){
+  if (SHEETS_OK){
+    SHEETS_REACHABLE = await testSheetsConnection();
+  }
+  var eq = await getJSON('equipment-registry', true, null);
+  if (!eq || !eq.length){
+    eq = buildDefaultEquipment();
+    await setJSON('equipment-registry', true, eq);
+  }
+  state.equipment = eq;
+
+  var savedName = await storeGet('last-inspector-name', false);
+  state.inspectorName = savedName || '';
+
+  try{
+    var params = new URLSearchParams(window.location.search);
+    var unitParam = params.get('unit');
+    if (unitParam && eq.some(function(u){ return u.id === unitParam; })){
+      state.view = 'unit';
+      state.currentUnitId = unitParam;
+      state.unitSubview = 'detail';
+    }
+  }catch(e){ /* ignore malformed location */ }
+
+  state.loaded = true;
+  render();
+}
+
+init();
+</script>
+</body>
+</html>
